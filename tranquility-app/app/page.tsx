@@ -56,6 +56,7 @@ const Tranquility = () => {
   // Read from localStorage — this is what your HTML login page writes
   const [userName, setUserName] = useState('');
   const [userYear, setUserYear] = useState('');
+  const [userEmail, setUserEmail] = useState('');
   // Dashboard state
   const [todayMood, setTodayMood] = useState(3);
   const [todayThoughts, setTodayThoughts] = useState('');
@@ -130,8 +131,10 @@ const Tranquility = () => {
     // This is how the name travels from login page into this dashboard.
     const loginAlias = localStorage.getItem('tranquility_user_alias');
     const loginYear  = localStorage.getItem('tranquility_user_year');
+    const loginEmail = localStorage.getItem('tranquility_user_email');
     if (loginAlias) setUserName(loginAlias);
     if (loginYear)  setUserYear(loginYear);
+    if (loginEmail) setUserEmail(loginEmail);
     // ──────────────────────────────────────────────────────────────
 
     const savedData = localStorage.getItem('tranquility-data');
@@ -253,7 +256,8 @@ const Tranquility = () => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          name:           userName,          // ← was missing
+          name:           userName,
+          email:          userEmail,
           mood:           todayMood + 1,     // convert 0-4 to 1-5 for backend
           note:           todayThoughts,     // ← was called 'thoughts' before
           mood_history:   moodHistory,       // ← was missing
@@ -1170,6 +1174,12 @@ const Tranquility = () => {
                     onClick={() => {
                       if (confirm('Are you sure? This cannot be undone.')) {
                         localStorage.removeItem('tranquility-data');
+                        localStorage.removeItem('tranquility_user_alias');
+                        localStorage.removeItem('tranquility_user_year');
+                        localStorage.removeItem('tranquility_user_email');
+                        // Redirect to the login page (since it's a file, we go to the start script's default or just reload)
+                        // For this prototype, we'll just reload the dashboard which will show as unauthenticated, 
+                        // or we can close the window. Let's just reload.
                         location.reload();
                       }
                     }}

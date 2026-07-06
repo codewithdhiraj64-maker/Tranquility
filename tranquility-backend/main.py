@@ -4,9 +4,16 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List, Optional, Any
+from supabase import create_client, Client
 
 load_dotenv()
 app = FastAPI()
+
+supabase_url = os.getenv("SUPABASE_URL")
+supabase_key = os.getenv("SUPABASE_KEY")
+supabase: Client | None = None
+if supabase_url and supabase_key:
+    supabase = create_client(supabase_url, supabase_key)
 
 # Allow CORS for the dashboard
 app.add_middleware(
@@ -30,6 +37,7 @@ class ExamContext(BaseModel):
 
 class CheckinRequest(BaseModel):
     name: str
+    email: Optional[str] = None
     mood: int
     note: str
     mood_history: List[int]
@@ -39,12 +47,35 @@ class CheckinRequest(BaseModel):
 
 @app.post("/login")
 async def login(req: LoginRequest):
-    # In a real application, you would save this to a database
-    print(f"Login received: {req.alias}, {req.email}")
+    if supabase:
+        try:
+            data = {
+                "alias": req.alias,
+                "email": req.email,
+                "age": req.age,
+                "gender": req.gender
+            }
+            response = supabase.table("users").upsert(data, on_conflict="email").execute()
+            print("Supabase user updated.")
+        except Exception as e:
+            print(f"Supabase Login Error: {e}")
+
     return {"status": "success"}
 
 @app.post("/checkin")
 async def checkin(req: CheckinRequest):
+    if supabase and req.email:
+        try:
+            data = {
+                "user_email": req.email,
+                "mood": req.mood,
+                "note": req.note,
+                "sleep_hours": req.sleep_hours
+            }
+            supabase.table("checkins").insert(data).execute()
+        except Exception as e:
+            print(f"Supabase Checkin Error: {e}")
+
     # Try using Gemini if we have a key, otherwise use mock responses
     api_key = os.getenv("GEMINI_API_KEY")
     

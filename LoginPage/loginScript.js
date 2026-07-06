@@ -1,3 +1,8 @@
+// --- Check for active session ---
+if (localStorage.getItem('tranquility_user_email')) {
+    window.location.replace('http://localhost:3000');
+}
+
 // Theme Switcher Trigger Interaction Loop with Dynamic Text
 const toggle = document.getElementById('toggle');
 const cardTitle = document.querySelector('.card-title');
@@ -54,6 +59,7 @@ if (form) {
             // Save to localStorage as expected by the dashboard
             localStorage.setItem('tranquility_user_alias', alias);
             localStorage.setItem('tranquility_user_year', age);
+            localStorage.setItem('tranquility_user_email', email);
 
             // Optional: send to backend if backend login endpoint exists
             await fetch('http://localhost:8000/login', {
