@@ -1355,7 +1355,7 @@ const Tranquility = () => {
         <div className={styles.sidebarContent}>
           <div className={styles.logo}>
             <div className={styles.logoIcon}>🧠</div>
-            <span>Mind<span style={{ color: 'var(--accent-violet)' }}>Ease</span></span>
+            <span>Tranq<span style={{ color: 'var(--accent-violet)' }}>itlity</span></span>
           </div>
 
           <div className={styles.navSection}>
