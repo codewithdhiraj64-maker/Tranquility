@@ -110,7 +110,23 @@ async def checkin(req: CheckinRequest):
         try:
             from google import genai
             client = genai.Client(api_key=api_key)
-            prompt = f"User {req.name} has a mood of {req.mood}/5 today. Note: {req.note}. Give a short JSON response with: reflection, greeting, activity, nudge, breathing_rec (478, box, or calm)."
+            
+            exams_str = ", ".join([f"{e.subject} in {e.days_away} days (Diff: {e.difficulty}/5)" for e in req.upcoming_exams]) if req.upcoming_exams else "None"
+            
+            prompt = f"""
+            User {req.name} has a mood of {req.mood}/5 today. 
+            Note: {req.note}. 
+            Sleep: {req.sleep_hours} hours.
+            Streak: {req.streak} days.
+            Upcoming exams: {exams_str}.
+            
+            Return a short JSON response with:
+            - reflection: A short, empathetic sentence addressing their mood and note.
+            - greeting: A friendly, short personalized greeting.
+            - activity: A quick 5-minute study break suggestion based on their state.
+            - nudge: A very short friendly reminder (e.g., if sleep is low, remind about rest; if exams near, remind about pacing).
+            - breathing_rec: Choose one based on their stress/mood: "478", "box", or "calm".
+            """
             # Minimal example of using real GenAI here, but falling back to mock for robustness
             import json
             response = client.models.generate_content(
@@ -135,9 +151,14 @@ async def checkin(req: CheckinRequest):
 
     greeting = f"Hi {req.name}, welcome back to Tranquility."
     activity = "How about a quick 5-minute walk outside?"
-    nudge = "Remember to stay hydrated!"
-    breathing_rec = "calm"
     
+    nudge = "Remember to stay hydrated!"
+    if req.upcoming_exams:
+        nudge = f"Your {req.upcoming_exams[0].subject} exam is coming up, don't forget to take breaks!"
+    elif req.sleep_hours < 6:
+        nudge = "You got less sleep than usual. Make sure to rest."
+
+    breathing_rec = "calm"
     if req.mood <= 2:
         activity = "Maybe take some time to rest and do something you love."
         breathing_rec = "box"
