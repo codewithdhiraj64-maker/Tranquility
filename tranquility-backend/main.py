@@ -30,6 +30,9 @@ class LoginRequest(BaseModel):
     age: str
     gender: str
 
+class AuthRequest(BaseModel):
+    email: str
+
 class ExamContext(BaseModel):
     subject: str
     days_away: int
@@ -61,6 +64,30 @@ async def login(req: LoginRequest):
             print(f"Supabase Login Error: {e}")
 
     return {"status": "success"}
+
+@app.post("/authenticate")
+async def authenticate(req: AuthRequest):
+    from fastapi import HTTPException
+    if not supabase:
+        raise HTTPException(status_code=500, detail="Database not connected")
+    
+    try:
+        response = supabase.table("users").select("*").eq("email", req.email).execute()
+        users = response.data
+        if not users or len(users) == 0:
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        user = users[0]
+        return {
+            "status": "success",
+            "alias": user.get("alias"),
+            "email": user.get("email"),
+            "age": user.get("age")
+        }
+    except Exception as e:
+        print(f"Supabase Auth Error: {e}")
+        raise HTTPException(status_code=500, detail="Internal Server Error")
+
 
 @app.post("/checkin")
 async def checkin(req: CheckinRequest):

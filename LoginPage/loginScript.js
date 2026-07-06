@@ -77,3 +77,62 @@ if (form) {
         }
     });
 }
+
+// --- Form Toggling ---
+const showLoginBtn = document.getElementById('showLoginBtn');
+const showSignupBtn = document.getElementById('showSignupBtn');
+const loginForm = document.getElementById('loginForm');
+const loginError = document.getElementById('loginError');
+
+if (showLoginBtn && showSignupBtn && loginForm) {
+    showLoginBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        form.style.display = 'none';
+        loginForm.style.display = 'block';
+        loginError.style.display = 'none';
+    });
+
+    showSignupBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        loginForm.style.display = 'none';
+        form.style.display = 'block';
+    });
+}
+
+// --- Login Form Submission Handler ---
+if (loginForm) {
+    loginForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const email = document.getElementById('loginEmailInput').value;
+        const submitBtn = document.getElementById('loginSubmitBtn');
+        submitBtn.innerHTML = '<span>Verifying...</span>';
+        submitBtn.disabled = true;
+        loginError.style.display = 'none';
+
+        try {
+            const res = await fetch('http://localhost:8000/authenticate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email })
+            });
+
+            if (res.ok) {
+                const data = await res.json();
+                localStorage.setItem('tranquility_user_alias', data.alias);
+                localStorage.setItem('tranquility_user_year', data.age);
+                localStorage.setItem('tranquility_user_email', data.email);
+                window.location.href = 'http://localhost:3000';
+            } else {
+                loginError.style.display = 'block';
+                submitBtn.innerHTML = '<span>Log In</span>';
+                submitBtn.disabled = false;
+            }
+        } catch (err) {
+            console.error('Login Error:', err);
+            loginError.innerText = "Network error. Make sure backend is running.";
+            loginError.style.display = 'block';
+            submitBtn.innerHTML = '<span>Log In</span>';
+            submitBtn.disabled = false;
+        }
+    });
+}

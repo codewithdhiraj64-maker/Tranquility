@@ -132,8 +132,31 @@
             </div>
 
             <button type="submit" class="glass-button" id="submitBtn">
-                <span>Continue</span>
+                <span>Sign Up</span>
             </button>
+            
+            <div style="text-align:center; margin-top: 20px;">
+                <a href="#" id="showLoginBtn" style="color: rgba(255,255,255,0.7); font-size: 0.9em; text-decoration: none; transition: color 0.3s;">Already have an account? Log in</a>
+            </div>
+        </form>
+
+        <!-- New Log In Form -->
+        <form id="loginForm" style="display: none;">
+            <div class="field-wrapper">
+                <div class="input-container">
+                    <svg class="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
+                    <input type="email" autocomplete="off" name="loginEmail" id="loginEmailInput" class="input" placeholder="Email Address" required>
+                </div>
+                <p id="loginError" style="color: #ff6b6b; font-size: 0.85em; margin-top: 10px; display: none; text-align: center;">User not found. Please sign up.</p>
+            </div>
+            
+            <button type="submit" class="glass-button" id="loginSubmitBtn">
+                <span>Log In</span>
+            </button>
+            
+            <div style="text-align:center; margin-top: 20px;">
+                <a href="#" id="showSignupBtn" style="color: rgba(255,255,255,0.7); font-size: 0.9em; text-decoration: none; transition: color 0.3s;">New here? Sign up</a>
+            </div>
         </form>
     </div>
 
