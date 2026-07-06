@@ -308,7 +308,7 @@ const Tranquility = () => {
         setTodayThoughts('');
         const today = new Date().getDay();
         const newHistory = [...moodHistory];
-        newHistory[today] = todayMood;
+        newHistory[today] = todayMood + 1;
         setMoodHistory(newHistory);
 
         const card = document.querySelector('[data-ai-card]');
