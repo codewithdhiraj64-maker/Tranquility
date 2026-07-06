@@ -604,7 +604,7 @@ const Tranquility = () => {
                 <div className={styles.warningHeader}>
                   <div>
                     <div className={styles.eyebrow}>48-HOUR EARLY WARNING</div>
-                    <h2 className={styles.cardTitle}>Paurva is nudging you early</h2>
+                    <h2 className={styles.cardTitle}>Tranquility is nudging you early</h2>
                     <p className={styles.cardSub}>Your pattern is matching the signs that came before harder weeks.</p>
                   </div>
                   <div className={styles.warningBadge}>Watch now</div>
