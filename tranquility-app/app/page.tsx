@@ -1,29 +1,130 @@
 'use client';
+import {
+  LayoutDashboard, TrendingUp, CalendarDays, Globe,
+  Leaf, Lightbulb, Settings, Flame, Star, CheckCircle,
+  Sparkles, ChevronDown, Wind, Timer, BookOpen, Moon, Sun
+} from 'lucide-react';
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import styles from './MindEase.module.css';
+
+type Exam = {
+  id: number;
+  subject: string;
+  date: string;
+  difficulty: 'easy' | 'medium' | 'hard';
+  anxietyRating: number;
+};
+
+type BurnoutSignals = {
+  moodTrend: number;
+  sleepHours: number;
+  studyHours: number;
+  daysUntilNextExam: number;
+  missedCheckIns: number;
+};
+
+type BurnoutAssessment = {
+  score: number;
+  level: 'Low' | 'Moderate' | 'High' | 'Critical';
+  color: string;
+  explanation: string;
+  intervention: string;
+};
+
+type RecoveryDay = {
+  day: number;
+  title: string;
+  subject: string;
+  duration: string;
+  recovery: string;
+  intensity: string;
+};
+
+type GratitudeEntry = {
+  id: number;
+  date: string;
+  items: string[];
+};
+
+const calculateBurnoutAssessment = (signals: BurnoutSignals): BurnoutAssessment => {
+  const moodRisk = Math.max(0, Math.min(100, ((5 - signals.moodTrend) / 5) * 100));
+  const sleepRisk = signals.sleepHours < 6 ? 100 : signals.sleepHours < 7 ? 70 : signals.sleepHours < 8 ? 35 : 10;
+  const studyRisk = Math.max(0, Math.min(100, signals.studyHours * 12));
+  const examRisk = signals.daysUntilNextExam <= 3 ? 100 : signals.daysUntilNextExam <= 7 ? 80 : signals.daysUntilNextExam <= 14 ? 45 : 15;
+  const missedRisk = Math.max(0, Math.min(100, signals.missedCheckIns * 18));
+
+  const score = Math.round(
+    moodRisk * 0.25 + sleepRisk * 0.2 + studyRisk * 0.2 + examRisk * 0.2 + missedRisk * 0.15,
+  );
+
+  if (score >= 85) {
+    return {
+      score,
+      level: 'Critical',
+      color: 'var(--accent-rose)',
+      explanation: 'Your current pattern suggests stress is stacking quickly across your mood, sleep, and study load.',
+      intervention: 'Take a real recovery break now and protect tonight’s sleep window.',
+    };
+  }
+
+  if (score >= 65) {
+    return {
+      score,
+      level: 'High',
+      color: 'var(--accent-amber)',
+      explanation: 'Your burnout signals are rising and your routine is starting to feel heavy.',
+      intervention: 'Reduce study pressure for one block and add a short reset before the next session.',
+    };
+  }
+
+  if (score >= 35) {
+    return {
+      score,
+      level: 'Moderate',
+      color: 'var(--accent-violet)',
+      explanation: 'You’re showing some warning signs, but there is still space to rebalance before it builds.',
+      intervention: 'Aim for one calmer evening routine and a slightly earlier bedtime tonight.',
+    };
+  }
+
+  return {
+    score,
+    level: 'Low',
+    color: 'var(--accent-sage)',
+    explanation: 'Your current mix of mood, sleep, and study signals looks steady and manageable.',
+    intervention: 'Keep your routine consistent and protect one hour for rest this week.',
+  };
+};
 
 const MindEase = () => {
   const [currentPage, setCurrentPage] = useState('dashboard');
   const [isDark, setIsDark] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [userName, setUserName] = useState('Alex');
-  const [userYear, setUserYear] = useState('Year 2');
-
+  // Read from localStorage — this is what your HTML login page writes
+  const [userName, setUserName] = useState('');
+  const [userYear, setUserYear] = useState('');
   // Dashboard state
   const [todayMood, setTodayMood] = useState(3);
   const [todayThoughts, setTodayThoughts] = useState('');
+  const [sleepHours, setSleepHours] = useState(7);
   const [aiReflection, setAiReflection] = useState('');
   const [showReflection, setShowReflection] = useState(false);
+  const [aiGreeting, setAiGreeting] = useState('');
+  const [studyBreakSuggestion, setStudyBreakSuggestion] = useState('');
+  const [aiNudge, setAiNudge] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Exams state
-  const [exams, setExams] = useState([]);
+  const [exams, setExams] = useState<Exam[]>([]);
   const [examSubject, setExamSubject] = useState('');
   const [examDate, setExamDate] = useState('');
   const [examDifficulty, setExamDifficulty] = useState('medium');
+  const [examAnxiety, setExamAnxiety] = useState(3);
 
   // Gratitude state
-  const [gratitudes, setGratitudes] = useState([]);
+  const [gratitudes, setGratitudes] = useState<GratitudeEntry[]>([]);
+  const [studyHistory, setStudyHistory] = useState<number[]>([6, 8, 7, 9, 8]);
   const [gratitude1, setGratitude1] = useState('');
   const [gratitude2, setGratitude2] = useState('');
   const [gratitude3, setGratitude3] = useState('');
@@ -41,13 +142,30 @@ const MindEase = () => {
   const [selectedTechnique, setSelectedTechnique] = useState('box');
   const [breathingPhase, setBreathingPhase] = useState('inhale');
 
+  // Wellness tab
+  const [wellnessTab, setWellnessTab] = useState<'breathing' | 'timer' | 'gratitude'>('breathing');
+
   // Mood history
-  const [moodHistory, setMoodHistory] = useState([5, 4, 3, 4, 5, 4, 3]);
+  const [moodHistory, setMoodHistory] = useState<number[]>([5, 4, 3, 4, 5, 4, 3]);
 
   // Settings
-  const [profileName, setProfileName] = useState(userName);
+  const [profileName, setProfileName] = useState('');
   const [profileAge, setProfileAge] = useState('20');
-  const [profileYear, setProfileYear] = useState(userYear);
+  const [profileYear, setProfileYear] = useState('');
+
+  // Exam difficulty dropdown
+  const [difficultyOpen, setDifficultyOpen] = useState(false);
+  const moodSliderRef = useRef<HTMLInputElement | null>(null);
+
+  const applyMoodSliderFill = useCallback((value: number) => {
+    const clampedValue = Math.min(4, Math.max(0, value));
+    const colors = ['#ef4444', '#f97316', '#eab308', '#84cc16', '#22c55e'];
+    const slider = moodSliderRef.current;
+
+    if (!slider) return;
+
+    slider.style.background = `linear-gradient(to right, ${colors[clampedValue]} 0%, ${colors[clampedValue]} ${(clampedValue / 4) * 100}%, rgba(124,111,247,0.15) ${(clampedValue / 4) * 100}%)`;
+  }, []);
 
   // Load from localStorage on mount
   useEffect(() => {
@@ -55,21 +173,34 @@ const MindEase = () => {
     setIsDark(theme === 'dark');
     document.documentElement.setAttribute('data-theme', theme);
 
+    // ── Read user from login page bridge ──────────────────────────
+    // Your HTML login page saves these keys when user clicks Continue.
+    // This is how the name travels from login page into this dashboard.
+    const loginAlias = localStorage.getItem('mindease_user_alias');
+    const loginYear  = localStorage.getItem('mindease_user_year');
+    if (loginAlias) setUserName(loginAlias);
+    if (loginYear)  setUserYear(loginYear);
+    // ──────────────────────────────────────────────────────────────
+
     const savedData = localStorage.getItem('mindease-data');
     if (savedData) {
       const data = JSON.parse(savedData);
-      setUserName(data.userName || 'Alex');
-      setUserYear(data.userYear || 'Year 2');
+      // Only use saved name if login page didn't provide one
+      setUserName(loginAlias || data.userName || 'Friend');
+      setUserYear(loginYear  || data.userYear  || 'Student');
       setTodayMood(data.todayMood || 3);
       setTodayThoughts(data.todayThoughts || '');
+      setSleepHours(data.sleepHours || 7);
       setExams(data.exams || []);
+      setExamAnxiety(data.examAnxiety || 3);
+      setStudyHistory(data.studyHistory || [6, 8, 7, 9, 8]);
       setGratitudes(data.gratitudes || []);
       setMoodHistory(data.moodHistory || [5, 4, 3, 4, 5, 4, 3]);
       setSessionsCompleted(data.sessionsCompleted || 0);
       setTotalFocusMinutes(data.totalFocusMinutes || 0);
       setBreaksTaken(data.breaksTaken || 0);
-      setProfileName(data.userName || 'Alex');
-      setProfileYear(data.userYear || 'Year 2');
+      setProfileName(loginAlias || data.userName || 'Friend');
+      setProfileYear(loginYear  || data.userYear  || 'Student');
     }
   }, []);
 
@@ -80,7 +211,10 @@ const MindEase = () => {
       userYear,
       todayMood,
       todayThoughts,
+      sleepHours,
       exams,
+      examAnxiety,
+      studyHistory,
       gratitudes,
       moodHistory,
       sessionsCompleted,
@@ -88,7 +222,11 @@ const MindEase = () => {
       breaksTaken,
     };
     localStorage.setItem('mindease-data', JSON.stringify(data));
-  }, [userName, userYear, todayMood, todayThoughts, exams, gratitudes, moodHistory, sessionsCompleted, totalFocusMinutes, breaksTaken]);
+  }, [userName, userYear, todayMood, todayThoughts, sleepHours, exams, studyHistory, gratitudes, moodHistory, sessionsCompleted, totalFocusMinutes, breaksTaken]);
+
+  useEffect(() => {
+    applyMoodSliderFill(todayMood);
+  }, [todayMood, applyMoodSliderFill]);
 
   // Toggle theme
   const toggleTheme = () => {
@@ -148,32 +286,68 @@ const MindEase = () => {
     return () => clearInterval(breatheTimer);
   }, [breathingActive, selectedTechnique]);
 
-  // Handle check-in submission
   const handleCheckIn = async () => {
+    setIsSubmitting(true);
+
+    // Build exam context for Gemini
+    const examsForAI = exams.map(e => ({
+      subject:    e.subject,
+      days_away:  daysUntil(e.date),
+      difficulty: e.difficulty,
+    }));
+
     try {
       const response = await fetch('http://localhost:8000/checkin', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          mood: todayMood,
-          thoughts: todayThoughts,
-          timestamp: new Date().toISOString(),
+          name:           userName,          // ← was missing
+          mood:           todayMood + 1,     // convert 0-4 to 1-5 for backend
+          note:           todayThoughts,     // ← was called 'thoughts' before
+          mood_history:   moodHistory,       // ← was missing
+          upcoming_exams: examsForAI,        // ← was missing
+          streak:         calculateStreak(), // ← was missing
+          sleep_hours:    sleepHours,        // ← was missing
         }),
       });
 
       if (response.ok) {
         const data = await response.json();
-        setAiReflection(data.reflection || 'Your thoughts have been recorded. Remember, you\'re doing great.');
-        setShowReflection(true);
-        setTodayThoughts('');
 
-        // Update mood history
+        // ── Use ALL 6 AI outputs, not just reflection ──────────────
+        setAiReflection(data.reflection || "You're doing great.");
+        setShowReflection(true);
+
+        // Update personalised greeting in header
+        if (data.greeting) {
+          // Store greeting to show in dashboard header
+          setAiGreeting(data.greeting);
+        }
+
+        // Show study break suggestion if returned
+        if (data.activity) {
+          setStudyBreakSuggestion(data.activity);
+        }
+
+        // Show nudge banner if Gemini detected a pattern
+        if (data.nudge) {
+          setAiNudge(data.nudge);
+        }
+
+        // Auto-select breathing technique based on mood
+        if (data.breathing_rec) {
+          setSelectedTechnique(data.breathing_rec); // '478', 'box', or 'calm'
+        }
+
+        // ── existing code stays ──────────────────────────────────────
+        setTodayMood(todayMood);
+        applyMoodSliderFill(todayMood);
+        setTodayThoughts('');
         const today = new Date().getDay();
         const newHistory = [...moodHistory];
         newHistory[today] = todayMood;
         setMoodHistory(newHistory);
 
-        // Trigger shimmer animation
         const card = document.querySelector('[data-ai-card]');
         if (card) {
           card.classList.remove(styles.shimmer);
@@ -182,18 +356,30 @@ const MindEase = () => {
         }
       }
     } catch (error) {
-      setAiReflection('Just keep going. You\'ve got this. 💜');
+      setAiReflection("Just keep going. You've got this. 💜");
       setShowReflection(true);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   // Add exam
   const handleAddExam = () => {
     if (examSubject && examDate) {
-      setExams([...exams, { id: Date.now(), subject: examSubject, date: examDate, difficulty: examDifficulty }]);
+      setExams([
+        ...exams,
+        {
+          id: Date.now(),
+          subject: examSubject,
+          date: examDate,
+          difficulty: examDifficulty,
+          anxietyRating: examAnxiety,
+        },
+      ]);
       setExamSubject('');
       setExamDate('');
       setExamDifficulty('medium');
+      setExamAnxiety(3);
     }
   };
 
@@ -257,6 +443,104 @@ const MindEase = () => {
     setSidebarOpen(false);
   };
 
+  const streak = calculateStreak();
+  const recentMoodAverage = moodHistory.slice(-3).reduce((total, mood) => total + mood, 0) / Math.max(1, moodHistory.slice(-3).length);
+  const nearestExamDays = exams.length > 0 ? Math.min(...exams.map((exam) => daysUntil(exam.date))) : 30;
+  const burnoutSignals = React.useMemo(
+    () => ({
+      moodTrend: recentMoodAverage,
+      sleepHours,
+      studyHours: Math.max(0, totalFocusMinutes / 60),
+      daysUntilNextExam: nearestExamDays,
+      missedCheckIns: Math.max(0, Math.min(7, 7 - streak)),
+    }),
+    [recentMoodAverage, sleepHours, totalFocusMinutes, nearestExamDays, streak],
+  );
+  const burnoutAssessment = React.useMemo(() => calculateBurnoutAssessment(burnoutSignals), [burnoutSignals]);
+  const studyHoursThisWeek = Math.max(0, totalFocusMinutes / 60);
+  const studyAverage = studyHistory.reduce((total, hours) => total + hours, 0) / Math.max(1, studyHistory.length);
+  const moodDrop = Math.max(0, (moodHistory.slice(-3)[0] || 0) - (moodHistory.slice(-3).at(-1) || 0));
+  const warning = React.useMemo(() => {
+    const hasMoodDrop = moodDrop >= 2;
+    const examSoon = nearestExamDays <= 5;
+    const belowAverage = studyHoursThisWeek < studyAverage;
+
+    if (!hasMoodDrop || !examSoon || !belowAverage) {
+      return null;
+    }
+
+    const examSubject = exams[0]?.subject || 'your upcoming exam';
+    const percentBelowAverage = Math.max(0, Math.round((1 - studyHoursThisWeek / Math.max(1, studyAverage)) * 100));
+    return {
+      moodDrop,
+      examSubject,
+      examDays: nearestExamDays,
+      percentBelowAverage,
+      message: `${userName}, your mood has dropped ${moodDrop} points this week and your ${examSubject} exam is in ${nearestExamDays} days. Your study hours are ${percentBelowAverage}% below your usual pace. Based on your pattern, this combination has preceded your lowest-performing weeks. Here is what worked for you before.`,
+    };
+  }, [moodDrop, nearestExamDays, studyHoursThisWeek, studyAverage, exams, userName]);
+
+  const subjectAnxietyInsight = React.useMemo(() => {
+    const mathPattern = /\b(math|mathematics)\b/i;
+    const twoDaysMathExams = exams.filter((exam) => mathPattern.test(exam.subject) && daysUntil(exam.date) === 2);
+    const twoDaysNonMathExams = exams.filter((exam) => !mathPattern.test(exam.subject) && daysUntil(exam.date) === 2);
+    const recentMoodDrop = moodHistory.length >= 3 ? moodHistory[moodHistory.length - 3] - moodHistory[moodHistory.length - 1] : 0;
+
+    if (!twoDaysMathExams.length || twoDaysNonMathExams.length > 0 || recentMoodDrop < 2) {
+      return null;
+    }
+
+    const highAnxietyMath = twoDaysMathExams.some((exam) => exam.anxietyRating >= 4);
+    if (!highAnxietyMath) {
+      return null;
+    }
+
+    const subject = twoDaysMathExams[0].subject;
+    return {
+      subject,
+      message: `${userName}, you consistently experience mood drops 2 days before ${subject} exams specifically — not before other subjects. This suggests subject-specific anxiety rather than general exam stress. Here is a targeted technique for mathematical anxiety.`,
+      technique: 'Try a focused warm-up with one simple problem, then use grounding breath cycles before you start intense review.',
+    };
+  }, [exams, moodHistory, userName]);
+
+  const recoveryPlan = React.useMemo<RecoveryDay[]>(() => {
+    const lightestSubject = exams.find((exam) => exam.difficulty === 'easy')?.subject
+      || exams.find((exam) => exam.difficulty === 'medium')?.subject
+      || exams[0]?.subject
+      || 'core concepts';
+    const urgentSubject = exams.find((exam) => exam.difficulty === 'hard')?.subject
+      || exams[0]?.subject
+      || 'your next exam topic';
+    const isCritical = burnoutAssessment.level === 'Critical';
+
+    return [
+      {
+        day: 1,
+        title: 'Light reset day',
+        subject: lightestSubject,
+        duration: isCritical ? '20–25 min' : '25–30 min',
+        recovery: isCritical ? '10-minute walk + hydration' : 'stretch break + tea',
+        intensity: 'Light',
+      },
+      {
+        day: 2,
+        title: 'Build momentum',
+        subject: urgentSubject,
+        duration: isCritical ? '30–35 min' : '35–45 min',
+        recovery: 'Short breathing reset and a snack break',
+        intensity: 'Steady',
+      },
+      {
+        day: 3,
+        title: 'Return to pace',
+        subject: urgentSubject,
+        duration: isCritical ? '45–60 min' : '60–75 min',
+        recovery: 'Protect one evening for rest and prep',
+        intensity: 'Full pace',
+      },
+    ];
+  }, [burnoutAssessment.level, exams]);
+
   // Render current page
   const renderPage = () => {
     switch (currentPage) {
@@ -265,15 +549,17 @@ const MindEase = () => {
           <div className={styles.pageContainer}>
             <div className={styles.pageHeader}>
               <div className={styles.eyebrow}>{new Date().toLocaleDateString('en-GB', { weekday: 'long', month: 'long', day: 'numeric' }).toUpperCase()}</div>
-              <h1 className={styles.pageTitle}>Welcome back, {userName} 👋</h1>
-              <p className={styles.pageSubtitle}>{userYear} · How are you holding up today?</p>
+              <h1 className={styles.pageTitle}>Welcome back, {userName || '...'} 👋</h1>
+              <p className={styles.pageSubtitle}>
+                {aiGreeting || `${userYear} · How are you holding up today?`}
+              </p>
             </div>
 
             <div className={styles.statStrip}>
-              <StatCard emoji="🔥" value={calculateStreak()} label="Day streak" delay="0ms" />
-              <StatCard emoji="⭐" value={(moodHistory.reduce((a, b) => a + b, 0) / moodHistory.length).toFixed(1)} label="Week average" delay="80ms" />
-              <StatCard emoji="😊" value={moodHistory[new Date().getDay()] > 3 ? 'Good' : 'Okay'} label="Best day this week" delay="160ms" />
-              <StatCard emoji="✓" value={moodHistory.filter((m) => m > 0).length} label="Total check-ins" delay="240ms" />
+              <StatCard className={styles.statCardStreak} emoji="🔥" value={calculateStreak()} label="Day streak" delay="0ms" />
+              <StatCard className={styles.statCardAvg} emoji="⭐" value={(moodHistory.reduce((a, b) => a + b, 0) / moodHistory.length).toFixed(1)} label="Week average" delay="80ms" />
+              <StatCard className={styles.statCardBest} emoji="😊" value={moodHistory[new Date().getDay()] > 3 ? 'Good' : 'Okay'} label="Best day this week" delay="160ms" />
+              <StatCard className={styles.statCardTotal} emoji="✓" value={moodHistory.filter((m) => m > 0).length} label="Total check-ins" delay="240ms" />
             </div>
 
             <div className={styles.twoColumnGrid}>
@@ -287,11 +573,16 @@ const MindEase = () => {
                 </div>
 
                 <input
+                  ref={moodSliderRef}
                   type="range"
                   min="0"
                   max="4"
                   value={todayMood}
-                  onChange={(e) => setTodayMood(parseInt(e.target.value))}
+                  onChange={(e) => {
+                    const val = parseInt(e.target.value);
+                    setTodayMood(val);
+                    applyMoodSliderFill(val);
+                  }}
                   className={styles.moodSlider}
                 />
 
@@ -310,8 +601,12 @@ const MindEase = () => {
                   className={styles.textarea}
                 />
 
-                <button onClick={handleCheckIn} className={styles.primaryButton}>
-                  Share with me
+                <button
+                  onClick={handleCheckIn}
+                  className={styles.primaryButton}
+                  disabled={isSubmitting}
+                >
+                  {isSubmitting ? '✨ Getting your reflection...' : 'Share with me'}
                 </button>
               </div>
 
@@ -336,6 +631,86 @@ const MindEase = () => {
               </div>
             </div>
 
+            <div className={`${styles.glassCard} ${styles.burnoutCard} ${styles.reveal}`} style={{ '--delay': '120ms' } as React.CSSProperties}>
+              <div className={styles.burnoutHeader}>
+                <div>
+                  <div className={styles.eyebrow}>AI WELLNESS INSIGHT</div>
+                  <h2 className={styles.cardTitle}>Burnout Prediction Score</h2>
+                  <p className={styles.cardSub}>Live outlook based on your recent check-ins and study rhythm.</p>
+                </div>
+                <div className={`${styles.burnoutBadge} ${styles[`burnoutBadge${burnoutAssessment.level}`]}`}>
+                  {burnoutAssessment.level}
+                </div>
+              </div>
+
+              <div className={styles.burnoutBody}>
+                <div
+                  className={`${styles.burnoutGauge} ${
+                    burnoutAssessment.level === 'Critical' ? styles.burnoutGaugeCritical : ''
+                  }`}
+                  style={{ background: `conic-gradient(${burnoutAssessment.color} ${burnoutAssessment.score * 3.6}deg, rgba(255,255,255,0.16) 0deg)` }}
+                >
+                  <div className={styles.burnoutGaugeInner}>
+                    <div className={styles.burnoutScore}>{burnoutAssessment.score}</div>
+                    <div className={styles.burnoutScoreOutOf}>/100</div>
+                  </div>
+                </div>
+
+                <div className={styles.burnoutInsights}>
+                  <p className={styles.burnoutExplanation}>{burnoutAssessment.explanation}</p>
+                  <div className={styles.burnoutAction}>{burnoutAssessment.intervention}</div>
+
+                  <div className={styles.burnoutBreakdown}>
+                    <div className={styles.burnoutMetric}>
+                      <span>Sleep</span>
+                      <strong>{sleepHours.toFixed(1)}h</strong>
+                    </div>
+                    <div className={styles.burnoutMetric}>
+                      <span>Study</span>
+                      <strong>{(totalFocusMinutes / 60).toFixed(1)}h</strong>
+                    </div>
+                    <div className={styles.burnoutMetric}>
+                      <span>Next exam</span>
+                      <strong>{nearestExamDays}d</strong>
+                    </div>
+                  </div>
+
+                  <div className={styles.burnoutInputRow}>
+                    <label className={styles.burnoutInputLabel}>Sleep tonight</label>
+                    <input
+                      type="range"
+                      min="4"
+                      max="10"
+                      step="0.5"
+                      value={sleepHours}
+                      onChange={(e) => setSleepHours(parseFloat(e.target.value))}
+                      className={styles.burnoutSlider}
+                    />
+                    <span className={styles.burnoutInputValue}>{sleepHours.toFixed(1)}h</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {warning && (
+              <div className={`${styles.glassCard} ${styles.warningCard} ${styles.reveal}`} style={{ '--delay': '180ms' } as React.CSSProperties}>
+                <div className={styles.warningHeader}>
+                  <div>
+                    <div className={styles.eyebrow}>48-HOUR EARLY WARNING</div>
+                    <h2 className={styles.cardTitle}>Paurva is nudging you early</h2>
+                    <p className={styles.cardSub}>Your pattern is matching the signs that came before harder weeks.</p>
+                  </div>
+                  <div className={styles.warningBadge}>Watch now</div>
+                </div>
+                <p className={styles.warningText}>{warning.message}</p>
+                <div className={styles.warningPillRow}>
+                  <span className={styles.warningPill}>Mood drop: {warning.moodDrop} pts</span>
+                  <span className={styles.warningPill}>Exam in {warning.examDays} days</span>
+                  <span className={styles.warningPill}>Study pace {warning.percentBelowAverage}% below average</span>
+                </div>
+              </div>
+            )}
+
             {showReflection && (
               <div className={`${styles.glassCard} ${styles.aiCard}`} data-ai-card>
                 <div className={styles.aiHeader}>
@@ -346,6 +721,26 @@ const MindEase = () => {
                   </div>
                 </div>
                 <p className={styles.aiText}>{aiReflection}</p>
+              </div>
+            )}
+            {/* AI Study Break Suggestion */}
+            {studyBreakSuggestion && (
+              <div className={`${styles.glassCard} ${styles.aiCard}`}>
+                <div className={styles.aiHeader}>
+                  <div className={styles.aiIcon}>🎯</div>
+                  <div>
+                    <h2 className={styles.cardTitle}>5-minute reset</h2>
+                    <p className={styles.cardSub}>A specific activity for right now</p>
+                  </div>
+                </div>
+                <p className={styles.aiText}>{studyBreakSuggestion}</p>
+              </div>
+            )}
+
+            {/* AI Nudge Banner */}
+            {aiNudge && (
+              <div className={`${styles.glassCard} ${styles.warningCard}`}>
+                <p style={{ fontSize: '13.5px', lineHeight: 1.7 }}>💜 {aiNudge}</p>
               </div>
             )}
           </div>
@@ -402,7 +797,7 @@ const MindEase = () => {
                 {Array(30)
                   .fill(0)
                   .map((_, idx) => (
-                    <div key={idx} className={styles.heatmapCell} style={{ '--mood': Math.floor(Math.random() * 5) } as React.CSSProperties} title={`Day ${idx + 1}: Mood level`} />
+                    <div key={idx} className={styles.heatmapCell} style={{ '--mood': moodHistory[idx % moodHistory.length] ?? 0 } as React.CSSProperties} title={`Day ${idx + 1}: Mood level`} />
                   ))}
               </div>
             </div>
@@ -419,7 +814,7 @@ const MindEase = () => {
             </div>
 
             <div className={styles.twoColumnGrid}>
-              <div className={`${styles.glassCard} ${styles.reveal}`}>
+              <div className={`${styles.glassCard} ${styles.reveal}`} style={{ position: 'relative', zIndex: 10 }}>
                 <h2 className={styles.cardTitle}>Add exam</h2>
                 <input
                   type="text"
@@ -429,11 +824,62 @@ const MindEase = () => {
                   className={styles.input}
                 />
                 <input type="date" value={examDate} onChange={(e) => setExamDate(e.target.value)} className={styles.input} />
-                <select value={examDifficulty} onChange={(e) => setExamDifficulty(e.target.value)} className={styles.input}>
-                  <option value="easy">Easy</option>
-                  <option value="medium">Medium</option>
-                  <option value="hard">Hard</option>
-                </select>
+
+                {/* Custom difficulty dropdown */}
+                <div className={styles.customDropdown}>
+                  <button
+                    type="button"
+                    className={`${styles.dropdownTrigger} ${difficultyOpen ? styles.dropdownOpen : ''}`}
+                    onClick={() => setDifficultyOpen(!difficultyOpen)}
+                  >
+                    <span className={styles.dropdownValue}>
+                      {examDifficulty === 'easy' && <><span className={styles.difficultyDot} data-level="easy" />Easy</>}
+                      {examDifficulty === 'medium' && <><span className={styles.difficultyDot} data-level="medium" />Medium</>}
+                      {examDifficulty === 'hard' && <><span className={styles.difficultyDot} data-level="hard" />Hard</>}
+                    </span>
+                    <span className={`${styles.dropdownChevron} ${difficultyOpen ? styles.chevronUp : ''}`}>›</span>
+                  </button>
+
+                  {difficultyOpen && (
+                    <div className={styles.dropdownMenu}>
+                      {[
+                        { value: 'easy', label: 'Easy', emoji: '🟢', desc: 'Light revision needed' },
+                        { value: 'medium', label: 'Medium', emoji: '🟡', desc: 'Some prep required' },
+                        { value: 'hard', label: 'Hard', emoji: '🔴', desc: 'Heavy study load' },
+                      ].map((opt, i) => (
+                        <button
+                          key={opt.value}
+                          type="button"
+                          className={`${styles.dropdownItem} ${examDifficulty === opt.value ? styles.dropdownItemActive : ''}`}
+                          style={{ '--item-delay': `${i * 50}ms` } as React.CSSProperties}
+                          onClick={() => { setExamDifficulty(opt.value); setDifficultyOpen(false); }}
+                        >
+                          <span className={styles.dropdownItemEmoji}>{opt.emoji}</span>
+                          <div className={styles.dropdownItemText}>
+                            <span className={styles.dropdownItemLabel}>{opt.label}</span>
+                            <span className={styles.dropdownItemDesc}>{opt.desc}</span>
+                          </div>
+                          {examDifficulty === opt.value && <span className={styles.dropdownItemCheck}>✓</span>}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <div className={styles.anxietyRow}>
+                  <label className={styles.inputLabel}>Subject anxiety</label>
+                  <div className={styles.anxietyControl}>
+                    <input
+                      type="range"
+                      min="1"
+                      max="5"
+                      value={examAnxiety}
+                      onChange={(e) => setExamAnxiety(parseInt(e.target.value, 10))}
+                      className={styles.anxietySlider}
+                    />
+                    <span className={styles.anxietyValue}>{examAnxiety}/5</span>
+                  </div>
+                  <p className={styles.microText}>How anxious does this subject make you feel?</p>
+                </div>
                 <button onClick={handleAddExam} className={styles.primaryButton}>
                   Add exam
                 </button>
@@ -454,6 +900,9 @@ const MindEase = () => {
                             <div className={styles.examDate}>{new Date(exam.date).toLocaleDateString()}</div>
                           </div>
                         </div>
+                        <div className={styles.examMeta}>
+                          <span className={styles.examAnxietyBadge}>Anxiety {exam.anxietyRating}/5</span>
+                        </div>
                         <div className={styles.examCountdown}>{daysUntil(exam.date)}d</div>
                         <button onClick={() => handleRemoveExam(exam.id)} className={styles.removeButton}>
                           ×
@@ -465,6 +914,23 @@ const MindEase = () => {
               </div>
             </div>
 
+            {subjectAnxietyInsight && (
+              <div className={`${styles.glassCard} ${styles.anxietyInsightCard} ${styles.reveal}`} style={{ '--delay': '140ms' } as React.CSSProperties}>
+                <div className={styles.warningHeader}>
+                  <div>
+                    <div className={styles.eyebrow}>EXAM ANXIETY INSIGHT</div>
+                    <h2 className={styles.cardTitle}>Targeted math anxiety support</h2>
+                    <p className={styles.cardSub}>Gemini found a subject-specific mood pattern.</p>
+                  </div>
+                  <div className={styles.warningBadge}>Subject focus</div>
+                </div>
+                <p className={styles.warningText}>{subjectAnxietyInsight.message}</p>
+                <div className={styles.anxietyTechnique}>
+                  <strong>Technique:</strong> {subjectAnxietyInsight.technique}
+                </div>
+              </div>
+            )}
+
             <div className={`${styles.glassCard} ${styles.reveal}`} style={{ '--delay': '160ms' } as React.CSSProperties}>
               <h2 className={styles.cardTitle}>7-Day stress forecast</h2>
               <div className={styles.stressForecast}>
@@ -474,9 +940,14 @@ const MindEase = () => {
                     return days === idx || days === idx + 1 || (days >= idx && days <= idx + 3);
                   });
                   const stressLevel = upcomingExams.length > 0 ? (upcomingExams[0].difficulty === 'hard' ? 'high' : 'medium') : 'low';
+                  const stressClass = {
+                    low: styles['stress-low'],
+                    medium: styles['stress-medium'],
+                    high: styles['stress-high'],
+                  }[stressLevel];
 
                   return (
-                    <div key={idx} className={`${styles.stressPill} ${styles[`stress-${stressLevel}`]}`}>
+                    <div key={idx} className={`${styles.stressPill} ${stressClass}`}>
                       <div className={styles.stressPillLabel}>{day}</div>
                     </div>
                   );
@@ -547,200 +1018,152 @@ const MindEase = () => {
           </div>
         );
 
-      case 'breathing-space':
+      case 'wellness':
         return (
           <div className={styles.pageContainer}>
             <div className={styles.pageHeader}>
               <div className={styles.eyebrow}>WELLNESS</div>
-              <h1 className={styles.pageTitle}>Breathing Space</h1>
-              <p className={styles.pageSubtitle}>Pick a technique. Follow the circle. That&apos;s it.</p>
+              <h1 className={styles.pageTitle}>Wellness Hub</h1>
+              <p className={styles.pageSubtitle}>Breathe, focus, and reflect — all in one place.</p>
             </div>
 
-            <div className={styles.techniqueGrid}>
-              {[
-                { id: 'box', name: 'Box breathing', desc: '4-4-4-4' },
-                { id: '478', name: '4-7-8 breathing', desc: 'Calming rhythm' },
-              ].map((tech) => (
-                <div
-                  key={tech.id}
-                  className={`${styles.techniquePill} ${selectedTechnique === tech.id ? styles.selected : ''}`}
-                  onClick={() => setSelectedTechnique(tech.id)}
+            {/* Wellness Tabs */}
+            <div className={styles.wellnessTabs}>
+              {([
+                { id: 'breathing', label: 'Breathing Space', icon: '🫁' },
+                { id: 'timer', label: 'Focus Timer', icon: '⏱️' },
+                { id: 'gratitude', label: 'Gratitude Journal', icon: '📝' },
+              ] as const).map((tab) => (
+                <button
+                  key={tab.id}
+                  onClick={() => setWellnessTab(tab.id)}
+                  className={`${styles.wellnessTab} ${wellnessTab === tab.id ? styles.activeTab : ''}`}
                 >
-                  <div className={styles.techniqueEmoji}>🫁</div>
-                  <div className={styles.techniqueName}>{tech.name}</div>
-                  <div className={styles.techniqueDesc}>{tech.desc}</div>
-                </div>
+                  <span>{tab.icon}</span>
+                  <span>{tab.label}</span>
+                </button>
               ))}
             </div>
 
-            <div className={`${styles.glassCard} ${styles.reveal}`}>
-              <div className={styles.centerContent}>
-                <div className={`${styles.breathingCircle} ${breathingActive ? styles.breathing : ''}`} style={{ '--phase': breathingPhase } as React.CSSProperties}>
-                  <div className={styles.breathingInner} />
-                </div>
-                <div className={styles.phaseTimer}>{['inhale', 'hold', 'exhale'].includes(breathingPhase) ? breathingPhase.charAt(0).toUpperCase() + breathingPhase.slice(1) : 'Hold'}</div>
-                <p className={styles.phaseLabel}>{breathingPhase === 'inhale' ? 'Breathe in…' : breathingPhase === 'exhale' ? 'Breathe out…' : 'Hold…'}</p>
-                <div className={styles.buttonGroup}>
-                  <button
-                    onClick={() => setBreathingActive(!breathingActive)}
-                    className={`${styles.primaryButton} ${breathingActive ? styles.active : ''}`}
-                  >
-                    {breathingActive ? 'Pause' : 'Start'}
-                  </button>
-                  <button onClick={() => { setBreathingActive(false); setBreathingPhase('inhale'); }} className={styles.secondaryButton}>
-                    Reset
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        );
-
-      case 'focus-timer':
-        return (
-          <div className={styles.pageContainer}>
-            <div className={styles.pageHeader}>
-              <div className={styles.eyebrow}>PRODUCTIVITY</div>
-              <h1 className={styles.pageTitle}>Focus Timer</h1>
-              <p className={styles.pageSubtitle}>Stay focused, take breaks.</p>
-            </div>
-
-            <div className={styles.twoColumnGrid}>
-              <div className={`${styles.glassCard} ${styles.reveal}`}>
-                <div className={styles.centerContent}>
-                  <div className={styles.ringTimer}>
-                    <svg viewBox="0 0 200 200" className={styles.timerSvg}>
-                      <circle cx="100" cy="100" r="90" className={styles.timerTrack} />
-                      <circle
-                        cx="100"
-                        cy="100"
-                        r="90"
-                        className={`${styles.timerProgress} ${isBreak ? styles.breakMode : ''}`}
-                        style={{
-                          strokeDashoffset: `${(timerSeconds / (isBreak ? 300 : 1500)) * 565}`,
-                        } as React.CSSProperties}
-                      />
-                    </svg>
-                    <div className={styles.timerDisplay}>
-                      <div className={styles.timerTime}>{formatTime(timerSeconds)}</div>
-                      <div className={styles.timerPhase}>{isBreak ? 'Break' : 'Focus'}</div>
-                    </div>
-                  </div>
-                  <div className={styles.buttonGroup}>
-                    <button
-                      onClick={() => setIsTimerRunning(!isTimerRunning)}
-                      className={`${styles.primaryButton} ${isTimerRunning ? styles.active : ''}`}
+            {/* Breathing Space */}
+            {wellnessTab === 'breathing' && (
+              <>
+                <div className={styles.techniqueGrid}>
+                  {[
+                    { id: 'box', name: 'Box breathing', desc: '4-4-4-4' },
+                    { id: '478', name: '4-7-8 breathing', desc: 'Calming rhythm' },
+                  ].map((tech) => (
+                    <div
+                      key={tech.id}
+                      className={`${styles.techniquePill} ${selectedTechnique === tech.id ? styles.selected : ''}`}
+                      onClick={() => setSelectedTechnique(tech.id)}
                     >
-                      {isTimerRunning ? 'Pause' : 'Start'}
-                    </button>
-                    <button
-                      onClick={() => {
-                        setIsTimerRunning(false);
-                        setTimerSeconds(isBreak ? 5 * 60 : 25 * 60);
-                      }}
-                      className={styles.secondaryButton}
-                    >
-                      Reset
-                    </button>
-                  </div>
-                  <div className={styles.timerStats}>
-                    <div>
-                      <div className={styles.statValue}>{sessionsCompleted}</div>
-                      <div className={styles.statName}>Sessions</div>
+                      <div className={styles.techniqueEmoji}>🫁</div>
+                      <div className={styles.techniqueName}>{tech.name}</div>
+                      <div className={styles.techniqueDesc}>{tech.desc}</div>
                     </div>
-                    <div>
-                      <div className={styles.statValue}>{totalFocusMinutes}</div>
-                      <div className={styles.statName}>Minutes</div>
-                    </div>
-                    <div>
-                      <div className={styles.statValue}>{breaksTaken}</div>
-                      <div className={styles.statName}>Breaks</div>
-                    </div>
-                  </div>
+                  ))}
                 </div>
-              </div>
-
-              <div className={styles.stackedCards}>
                 <div className={`${styles.glassCard} ${styles.reveal}`}>
-                  <h2 className={styles.cardTitle}>What are you studying?</h2>
-                  <input type="text" placeholder="e.g., Organic Chemistry" className={styles.input} />
-                  <label className={styles.inputLabel}>Session length</label>
-                  <select className={styles.input}>
-                    <option>25 minutes (Pomodoro)</option>
-                    <option>45 minutes</option>
-                    <option>90 minutes</option>
-                  </select>
-                </div>
-
-                <div className={`${styles.glassCard} ${styles.reveal}`} style={{ '--delay': '80ms' } as React.CSSProperties}>
-                  <h2 className={styles.cardTitle}>Today&apos;s sessions</h2>
-                  <p className={styles.emptyState}>No sessions yet. Start your first one!</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        );
-
-      case 'gratitude-journal':
-        return (
-          <div className={styles.pageContainer}>
-            <div className={styles.pageHeader}>
-              <div className={styles.eyebrow}>REFLECTION</div>
-              <h1 className={styles.pageTitle}>Gratitude Journal</h1>
-              <p className={styles.pageSubtitle}>Notice the good, no matter how small.</p>
-            </div>
-
-            <div className={styles.twoColumnGrid}>
-              <div className={`${styles.glassCard} ${styles.reveal}`}>
-                <h2 className={styles.cardTitle}>New entry</h2>
-                <input
-                  type="text"
-                  placeholder="1. Something good that happened today"
-                  value={gratitude1}
-                  onChange={(e) => setGratitude1(e.target.value)}
-                  className={styles.input}
-                />
-                <input
-                  type="text"
-                  placeholder="2. Someone you appreciated"
-                  value={gratitude2}
-                  onChange={(e) => setGratitude2(e.target.value)}
-                  className={styles.input}
-                />
-                <input
-                  type="text"
-                  placeholder="3. Something about yourself"
-                  value={gratitude3}
-                  onChange={(e) => setGratitude3(e.target.value)}
-                  className={styles.input}
-                />
-                <button onClick={handleSaveGratitude} className={styles.primaryButton}>
-                  Save entry
-                </button>
-              </div>
-
-              <div className={`${styles.glassCard} ${styles.reveal}`} style={{ '--delay': '80ms' } as React.CSSProperties}>
-                <h2 className={styles.cardTitle}>Past entries</h2>
-                {gratitudes.length === 0 ? (
-                  <p className={styles.emptyState}>Your first entry is the hardest. What went okay today?</p>
-                ) : (
-                  <div className={styles.entryList}>
-                    {gratitudes.map((entry) => (
-                      <div key={entry.id} className={styles.entry}>
-                        <p className={styles.entryDate}>{entry.date}</p>
-                        {entry.items.map((item, idx) => (
-                          item && (
-                            <p key={idx} className={styles.entryItem}>
-                              {['🌟', '🤝', '💪'][idx]} {item}
-                            </p>
-                          )
-                        ))}
-                      </div>
-                    ))}
+                  <div className={styles.centerContent}>
+                    <div className={`${styles.breathingCircle} ${breathingActive ? styles.breathing : ''}`} style={{ '--phase': breathingPhase } as React.CSSProperties}>
+                      <div className={styles.breathingInner} />
+                    </div>
+                    <div className={styles.phaseTimer}>{['inhale', 'hold', 'exhale'].includes(breathingPhase) ? breathingPhase.charAt(0).toUpperCase() + breathingPhase.slice(1) : 'Hold'}</div>
+                    <p className={styles.phaseLabel}>{breathingPhase === 'inhale' ? 'Breathe in…' : breathingPhase === 'exhale' ? 'Breathe out…' : 'Hold…'}</p>
+                    <div className={styles.buttonGroup}>
+                      <button onClick={() => setBreathingActive(!breathingActive)} className={`${styles.primaryButton} ${breathingActive ? styles.active : ''}`}>
+                        {breathingActive ? 'Pause' : 'Start'}
+                      </button>
+                      <button onClick={() => { setBreathingActive(false); setBreathingPhase('inhale'); }} className={styles.secondaryButton}>
+                        Reset
+                      </button>
+                    </div>
                   </div>
-                )}
+                </div>
+              </>
+            )}
+
+            {/* Focus Timer */}
+            {wellnessTab === 'timer' && (
+              <div className={styles.twoColumnGrid}>
+                <div className={`${styles.glassCard} ${styles.reveal}`}>
+                  <div className={styles.centerContent}>
+                    <div className={styles.ringTimer}>
+                      <svg viewBox="0 0 200 200" className={styles.timerSvg}>
+                        <circle cx="100" cy="100" r="90" className={styles.timerTrack} />
+                        <circle
+                          cx="100" cy="100" r="90"
+                          className={`${styles.timerProgress} ${isBreak ? styles.breakMode : ''}`}
+                          style={{ strokeDashoffset: `${(timerSeconds / (isBreak ? 300 : 1500)) * 565}` } as React.CSSProperties}
+                        />
+                      </svg>
+                      <div className={styles.timerDisplay}>
+                        <div className={styles.timerTime}>{formatTime(timerSeconds)}</div>
+                        <div className={styles.timerPhase}>{isBreak ? 'Break' : 'Focus'}</div>
+                      </div>
+                    </div>
+                    <div className={styles.buttonGroup}>
+                      <button onClick={() => setIsTimerRunning(!isTimerRunning)} className={`${styles.primaryButton} ${isTimerRunning ? styles.active : ''}`}>
+                        {isTimerRunning ? 'Pause' : 'Start'}
+                      </button>
+                      <button onClick={() => { setIsTimerRunning(false); setTimerSeconds(isBreak ? 5 * 60 : 25 * 60); }} className={styles.secondaryButton}>
+                        Reset
+                      </button>
+                    </div>
+                    <div className={styles.timerStats}>
+                      <div><div className={styles.statValue}>{sessionsCompleted}</div><div className={styles.statName}>Sessions</div></div>
+                      <div><div className={styles.statValue}>{totalFocusMinutes}</div><div className={styles.statName}>Minutes</div></div>
+                      <div><div className={styles.statValue}>{breaksTaken}</div><div className={styles.statName}>Breaks</div></div>
+                    </div>
+                  </div>
+                </div>
+                <div className={styles.stackedCards}>
+                  <div className={`${styles.glassCard} ${styles.reveal}`}>
+                    <h2 className={styles.cardTitle}>What are you studying?</h2>
+                    <input type="text" placeholder="e.g., Organic Chemistry" className={styles.input} />
+                    <label className={styles.inputLabel}>Session length</label>
+                    <select className={styles.input}>
+                      <option>25 minutes (Pomodoro)</option>
+                      <option>45 minutes</option>
+                      <option>90 minutes</option>
+                    </select>
+                  </div>
+                  <div className={`${styles.glassCard} ${styles.reveal}`} style={{ '--delay': '80ms' } as React.CSSProperties}>
+                    <h2 className={styles.cardTitle}>Today&apos;s sessions</h2>
+                    <p className={styles.emptyState}>No sessions yet. Start your first one!</p>
+                  </div>
+                </div>
               </div>
-            </div>
+            )}
+
+            {/* Gratitude Journal */}
+            {wellnessTab === 'gratitude' && (
+              <div className={styles.twoColumnGrid}>
+                <div className={`${styles.glassCard} ${styles.reveal}`}>
+                  <h2 className={styles.cardTitle}>New entry</h2>
+                  <input type="text" placeholder="1. Something good that happened today" value={gratitude1} onChange={(e) => setGratitude1(e.target.value)} className={styles.input} />
+                  <input type="text" placeholder="2. Someone you appreciated" value={gratitude2} onChange={(e) => setGratitude2(e.target.value)} className={styles.input} />
+                  <input type="text" placeholder="3. Something about yourself" value={gratitude3} onChange={(e) => setGratitude3(e.target.value)} className={styles.input} />
+                  <button onClick={handleSaveGratitude} className={styles.primaryButton}>Save entry</button>
+                </div>
+                <div className={`${styles.glassCard} ${styles.reveal}`} style={{ '--delay': '80ms' } as React.CSSProperties}>
+                  <h2 className={styles.cardTitle}>Past entries</h2>
+                  {gratitudes.length === 0 ? (
+                    <p className={styles.emptyState}>Your first entry is the hardest. What went okay today?</p>
+                  ) : (
+                    <div className={styles.entryList}>
+                      {gratitudes.map((entry) => (
+                        <div key={entry.id} className={styles.entry}>
+                          <p className={styles.entryDate}>{entry.date}</p>
+                          {entry.items.map((item, idx) => item && <p key={idx} className={styles.entryItem}>{['🌟', '🤝', '💪'][idx]} {item}</p>)}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         );
 
@@ -827,7 +1250,8 @@ const MindEase = () => {
                   <div className={styles.toggleRow}>
                     <span>Dark mode</span>
                     <button onClick={toggleTheme} className={`${styles.toggleSwitch} ${isDark ? styles.active : ''}`}>
-                      <div className={styles.toggleSlider} />
+                      <div className={styles.toggleSlider}>{isDark ? '🌙' : '☀️'}</div>
+                      <span className={styles.toggleLabel}>{isDark ? 'Dark' : 'Light'}</span>
                     </button>
                   </div>
                 </div>
@@ -877,8 +1301,8 @@ const MindEase = () => {
           --bg-aurora-1: #C4B5F4;
           --bg-aurora-2: #B8E8D0;
           --bg-aurora-3: #F5D0C5;
-          --text-primary: #1E2044;
-          --text-secondary: #4A5070;
+          --text-primary: #050511;
+          --text-secondary: #2C314A;
           --text-tertiary: #8090A8;
           --accent-violet: #7C6FF7;
           --accent-sage: #5B8A68;
@@ -899,8 +1323,8 @@ const MindEase = () => {
           --bg-aurora-1: #1A0B2E;
           --bg-aurora-2: #0B2430;
           --bg-aurora-3: #3D1020;
-          --text-primary: #EDE8F5;
-          --text-secondary: #A098C0;
+          --text-primary: #FFFFFF;
+          --text-secondary: #C4BDDD;
           --text-tertiary: #5A5278;
           --accent-violet: #9D96FF;
           --accent-sage: #76A781;
@@ -937,10 +1361,10 @@ const MindEase = () => {
           <div className={styles.navSection}>
             <p className={styles.navSectionLabel}>Main</p>
             {[
-              { id: 'dashboard', label: 'Dashboard', icon: '📊' },
+              { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard size={18}/> },
               { id: 'mood-history', label: 'Mood History', icon: '📈' },
-              { id: 'exam-planner', label: 'Exam Planner', icon: '📚' },
-              { id: 'campus-pulse', label: 'Campus Pulse', icon: '🏫' },
+              { id: 'exam-planner', label: 'Exam Planner', icon: <BookOpen size={18}/> },
+              { id: 'campus-pulse', label: 'Campus Pulse', icon: <Globe size={18}/> },
             ].map((item) => (
               <button
                 key={item.id}
@@ -955,20 +1379,13 @@ const MindEase = () => {
 
           <div className={styles.navSection}>
             <p className={styles.navSectionLabel}>Wellness</p>
-            {[
-              { id: 'breathing-space', label: 'Breathing Space', icon: '🫁' },
-              { id: 'focus-timer', label: 'Focus Timer', icon: '⏱️' },
-              { id: 'gratitude-journal', label: 'Gratitude Journal', icon: '📝' },
-            ].map((item) => (
-              <button
-                key={item.id}
-                onClick={() => navigateTo(item.id)}
-                className={`${styles.navItem} ${currentPage === item.id ? styles.active : ''}`}
-              >
-                <span className={styles.navIcon}>{item.icon}</span>
-                <span>{item.label}</span>
-              </button>
-            ))}
+            <button
+              onClick={() => navigateTo('wellness')}
+              className={`${styles.navItem} ${currentPage === 'wellness' ? styles.active : ''}`}
+            >
+              <span className={styles.navIcon}>🌿</span>
+              <span>Wellness Hub</span>
+            </button>
           </div>
 
           <div className={styles.navSection}>
@@ -998,10 +1415,11 @@ const MindEase = () => {
 
           <div className={styles.sidebarFooter}>
             <button onClick={toggleTheme} className={`${styles.toggleSwitch} ${isDark ? styles.active : ''}`}>
-              <div className={styles.toggleSlider} />
+              <div className={styles.toggleSlider}>{isDark ? '🌙' : '☀️'}</div>
+              <span className={styles.toggleLabel}>{isDark ? 'Dark mode' : 'Light mode'}</span>
             </button>
             <div className={styles.userCard}>
-              <div className={styles.userName}>{userName}</div>
+              <div className={styles.userName}>{userName || 'You'}</div>
               <div className={styles.userYear}>{userYear}</div>
             </div>
           </div>
@@ -1011,7 +1429,7 @@ const MindEase = () => {
       {/* Mobile menu button */}
       <button
         onClick={() => setSidebarOpen(!sidebarOpen)}
-        className={styles.mobileMenuButton}
+        className={`${styles.mobileMenuButton} ${sidebarOpen ? styles.menuOpen : ''}`}
       >
         ☰
       </button>

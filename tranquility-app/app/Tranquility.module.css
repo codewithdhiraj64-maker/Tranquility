@@ -1760,7 +1760,7 @@
   margin: 0;
   animation: phaseColor 4s ease-in-out infinite;
 }
-/* Add to MindEase.module.css */
+/* Add to Tranquility.module.css */
 .breathingCircle[style*="inhale"] .breathingInner,
 .breathPhaseInhale {
   background: radial-gradient(circle at 38% 38%, 
@@ -2272,7 +2272,7 @@
   height: 300px;
   color: var(--accent-violet);
 }
-/* In MindEase.module.css, find .blob and change to: */
+/* In Tranquility.module.css, find .blob and change to: */
 .blob {
   mix-blend-mode: screen;   /* keeps dark mode beautiful */
   will-change: transform;
@@ -2302,7 +2302,7 @@
   animation: floatBlob3 12s ease-in-out -4s infinite;
 }
 
-/* Add to MindEase.module.css */
+/* Add to Tranquility.module.css */
 .statCardStreak .statNumber  { color: var(--accent-amber);  }
 .statCardAvg    .statNumber  { color: var(--accent-violet); }
 .statCardBest   .statNumber  { color: var(--accent-sage);   }
