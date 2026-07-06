@@ -132,9 +132,15 @@ const Tranquility = () => {
     const loginAlias = localStorage.getItem('tranquility_user_alias');
     const loginYear  = localStorage.getItem('tranquility_user_year');
     const loginEmail = localStorage.getItem('tranquility_user_email');
+    
+    if (!loginEmail) {
+      window.location.href = '/login/loginPage.html';
+      return;
+    }
+    
     if (loginAlias) setUserName(loginAlias);
     if (loginYear)  setUserYear(loginYear);
-    if (loginEmail) setUserEmail(loginEmail);
+    setUserEmail(loginEmail);
     // ──────────────────────────────────────────────────────────────
 
     const savedData = localStorage.getItem('tranquility-data');

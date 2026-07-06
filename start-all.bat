@@ -9,8 +9,8 @@ start "Tranquility Backend" cmd /k "cd /d "%~dp0tranquility-backend" && pip inst
 echo Starting Frontend Server...
 start "Tranquility Frontend" cmd /k "cd /d "%~dp0tranquility-app" && npm install && npm run dev"
 
-echo Opening Login Page in your default browser...
-start "" "%~dp0LoginPage\loginPage.html"
+echo Opening Dashboard (will redirect to login if needed)...
+start "" "http://localhost:3000"
 
 echo.
 echo All services are spinning up! 
