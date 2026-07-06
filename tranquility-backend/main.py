@@ -112,6 +112,7 @@ async def checkin(req: CheckinRequest):
             client = genai.Client(api_key=api_key)
             prompt = f"User {req.name} has a mood of {req.mood}/5 today. Note: {req.note}. Give a short JSON response with: reflection, greeting, activity, nudge, breathing_rec (478, box, or calm)."
             # Minimal example of using real GenAI here, but falling back to mock for robustness
+            import json
             response = client.models.generate_content(
                 model='gemini-2.5-flash',
                 contents=prompt,
@@ -119,8 +120,7 @@ async def checkin(req: CheckinRequest):
                     'response_mime_type': 'application/json',
                 }
             )
-            # You would parse response.text here, but for safety in this prototype, 
-            # we'll use the mock if any parsing fails.
+            return json.loads(response.text)
         except Exception as e:
             print(f"GenAI Error: {e}")
             pass

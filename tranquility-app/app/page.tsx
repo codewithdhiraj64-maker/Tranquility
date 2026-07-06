@@ -99,7 +99,7 @@ const Tranquility = () => {
   const [wellnessTab, setWellnessTab] = useState<'breathing' | 'timer' | 'gratitude'>('breathing');
 
   // Mood history
-  const [moodHistory, setMoodHistory] = useState<number[]>([]);
+  const [moodHistory, setMoodHistory] = useState<number[]>([0, 0, 0, 0, 0, 0, 0]);
 
   // Settings
   const [profileName, setProfileName] = useState('');
@@ -156,7 +156,8 @@ const Tranquility = () => {
       setExamAnxiety(data.examAnxiety || 3);
       setStudyHistory(data.studyHistory || []);
       setGratitudes(data.gratitudes || []);
-      setMoodHistory(data.moodHistory || []);
+      const savedMoodHistory = data.moodHistory && data.moodHistory.length === 7 ? data.moodHistory : [0, 0, 0, 0, 0, 0, 0];
+      setMoodHistory(savedMoodHistory);
       setSessionsCompleted(data.sessionsCompleted || 0);
       setTotalFocusMinutes(data.totalFocusMinutes || 0);
       setBreaksTaken(data.breaksTaken || 0);
@@ -1267,7 +1268,7 @@ const Tranquility = () => {
         <div className={styles.sidebarContent}>
           <div className={styles.logo}>
             <div className={styles.logoIcon}>🧠</div>
-            <span>Tranq<span style={{ color: 'var(--accent-violet)' }}>itlity</span></span>
+            <span>Tranq<span style={{ color: 'var(--accent-violet)' }}>ility</span></span>
           </div>
 
           <div className={styles.navSection}>
