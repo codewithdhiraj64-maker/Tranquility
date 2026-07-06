@@ -3,7 +3,7 @@ import type { Metadata, Viewport } from 'next'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'MindEase',
+  title: 'Tranquility',
   description: 'Created to help you manage your mental health and well-being.',
   generator: 'v0.app',
   icons: {

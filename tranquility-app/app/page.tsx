@@ -6,7 +6,7 @@ import {
 } from 'lucide-react';
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import styles from './MindEase.module.css';
+import styles from './Tranquility.module.css';
 
 type Exam = {
   id: number;
@@ -97,7 +97,7 @@ const calculateBurnoutAssessment = (signals: BurnoutSignals): BurnoutAssessment 
   };
 };
 
-const MindEase = () => {
+const Tranquility = () => {
   const [currentPage, setCurrentPage] = useState('dashboard');
   const [isDark, setIsDark] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -176,13 +176,13 @@ const MindEase = () => {
     // ── Read user from login page bridge ──────────────────────────
     // Your HTML login page saves these keys when user clicks Continue.
     // This is how the name travels from login page into this dashboard.
-    const loginAlias = localStorage.getItem('mindease_user_alias');
-    const loginYear  = localStorage.getItem('mindease_user_year');
+    const loginAlias = localStorage.getItem('tranquility_user_alias');
+    const loginYear  = localStorage.getItem('tranquility_user_year');
     if (loginAlias) setUserName(loginAlias);
     if (loginYear)  setUserYear(loginYear);
     // ──────────────────────────────────────────────────────────────
 
-    const savedData = localStorage.getItem('mindease-data');
+    const savedData = localStorage.getItem('tranquility-data');
     if (savedData) {
       const data = JSON.parse(savedData);
       // Only use saved name if login page didn't provide one
@@ -221,7 +221,7 @@ const MindEase = () => {
       totalFocusMinutes,
       breaksTaken,
     };
-    localStorage.setItem('mindease-data', JSON.stringify(data));
+    localStorage.setItem('tranquility-data', JSON.stringify(data));
   }, [userName, userYear, todayMood, todayThoughts, sleepHours, exams, studyHistory, gratitudes, moodHistory, sessionsCompleted, totalFocusMinutes, breaksTaken]);
 
   useEffect(() => {
@@ -1260,10 +1260,10 @@ const MindEase = () => {
                   <h2 className={styles.cardTitle}>Data</h2>
                   <button
                     onClick={() => {
-                      const dataStr = JSON.stringify(localStorage.getItem('mindease-data'));
+                      const dataStr = JSON.stringify(localStorage.getItem('tranquility-data'));
                       const element = document.createElement('a');
                       element.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(dataStr));
-                      element.setAttribute('download', 'mindease-export.json');
+                      element.setAttribute('download', 'tranquility-export.json');
                       element.click();
                     }}
                     className={styles.secondaryButton}
@@ -1273,7 +1273,7 @@ const MindEase = () => {
                   <button
                     onClick={() => {
                       if (confirm('Are you sure? This cannot be undone.')) {
-                        localStorage.removeItem('mindease-data');
+                        localStorage.removeItem('tranquility-data');
                         location.reload();
                       }
                     }}
@@ -1496,4 +1496,4 @@ const StatCard = ({ emoji, value, label, delay }: { emoji: string; value: number
   );
 };
 
-export default MindEase;
+export default Tranquility;
