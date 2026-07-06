@@ -31,3 +31,43 @@ window.addEventListener('DOMContentLoaded', () => {
         }
     }, 3000);
 });
+
+// --- Onboarding Form Submission Handler ---
+const form = document.getElementById('onboardingForm');
+if (form) {
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        // Collect form data
+        const formData = new FormData(form);
+        const alias = formData.get('alias');
+        const email = formData.get('email');
+        const age = formData.get('age');
+        const gender = formData.get('gender');
+
+        const submitBtn = document.getElementById('submitBtn');
+        const originalText = submitBtn.innerHTML;
+        submitBtn.innerHTML = '<span>Entering...</span>';
+        submitBtn.disabled = true;
+
+        try {
+            // Save to localStorage as expected by the dashboard
+            localStorage.setItem('tranquility_user_alias', alias);
+            localStorage.setItem('tranquility_user_year', age);
+
+            // Optional: send to backend if backend login endpoint exists
+            await fetch('http://localhost:8000/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ alias, email, age, gender })
+            });
+
+            // Redirect to dashboard
+            window.location.href = 'http://localhost:3000';
+        } catch (err) {
+            console.error('Login Error:', err);
+            // Even if backend fails, redirect to dashboard for the prototype
+            window.location.href = 'http://localhost:3000';
+        }
+    });
+}

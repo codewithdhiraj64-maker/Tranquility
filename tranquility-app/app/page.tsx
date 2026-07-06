@@ -47,55 +47,7 @@ type GratitudeEntry = {
   items: string[];
 };
 
-const calculateBurnoutAssessment = (signals: BurnoutSignals): BurnoutAssessment => {
-  const moodRisk = Math.max(0, Math.min(100, ((5 - signals.moodTrend) / 5) * 100));
-  const sleepRisk = signals.sleepHours < 6 ? 100 : signals.sleepHours < 7 ? 70 : signals.sleepHours < 8 ? 35 : 10;
-  const studyRisk = Math.max(0, Math.min(100, signals.studyHours * 12));
-  const examRisk = signals.daysUntilNextExam <= 3 ? 100 : signals.daysUntilNextExam <= 7 ? 80 : signals.daysUntilNextExam <= 14 ? 45 : 15;
-  const missedRisk = Math.max(0, Math.min(100, signals.missedCheckIns * 18));
 
-  const score = Math.round(
-    moodRisk * 0.25 + sleepRisk * 0.2 + studyRisk * 0.2 + examRisk * 0.2 + missedRisk * 0.15,
-  );
-
-  if (score >= 85) {
-    return {
-      score,
-      level: 'Critical',
-      color: 'var(--accent-rose)',
-      explanation: 'Your current pattern suggests stress is stacking quickly across your mood, sleep, and study load.',
-      intervention: 'Take a real recovery break now and protect tonight’s sleep window.',
-    };
-  }
-
-  if (score >= 65) {
-    return {
-      score,
-      level: 'High',
-      color: 'var(--accent-amber)',
-      explanation: 'Your burnout signals are rising and your routine is starting to feel heavy.',
-      intervention: 'Reduce study pressure for one block and add a short reset before the next session.',
-    };
-  }
-
-  if (score >= 35) {
-    return {
-      score,
-      level: 'Moderate',
-      color: 'var(--accent-violet)',
-      explanation: 'You’re showing some warning signs, but there is still space to rebalance before it builds.',
-      intervention: 'Aim for one calmer evening routine and a slightly earlier bedtime tonight.',
-    };
-  }
-
-  return {
-    score,
-    level: 'Low',
-    color: 'var(--accent-sage)',
-    explanation: 'Your current mix of mood, sleep, and study signals looks steady and manageable.',
-    intervention: 'Keep your routine consistent and protect one hour for rest this week.',
-  };
-};
 
 const Tranquility = () => {
   const [currentPage, setCurrentPage] = useState('dashboard');
@@ -124,7 +76,7 @@ const Tranquility = () => {
 
   // Gratitude state
   const [gratitudes, setGratitudes] = useState<GratitudeEntry[]>([]);
-  const [studyHistory, setStudyHistory] = useState<number[]>([6, 8, 7, 9, 8]);
+  const [studyHistory, setStudyHistory] = useState<number[]>([]);
   const [gratitude1, setGratitude1] = useState('');
   const [gratitude2, setGratitude2] = useState('');
   const [gratitude3, setGratitude3] = useState('');
@@ -146,7 +98,7 @@ const Tranquility = () => {
   const [wellnessTab, setWellnessTab] = useState<'breathing' | 'timer' | 'gratitude'>('breathing');
 
   // Mood history
-  const [moodHistory, setMoodHistory] = useState<number[]>([5, 4, 3, 4, 5, 4, 3]);
+  const [moodHistory, setMoodHistory] = useState<number[]>([]);
 
   // Settings
   const [profileName, setProfileName] = useState('');
@@ -193,9 +145,9 @@ const Tranquility = () => {
       setSleepHours(data.sleepHours || 7);
       setExams(data.exams || []);
       setExamAnxiety(data.examAnxiety || 3);
-      setStudyHistory(data.studyHistory || [6, 8, 7, 9, 8]);
+      setStudyHistory(data.studyHistory || []);
       setGratitudes(data.gratitudes || []);
-      setMoodHistory(data.moodHistory || [5, 4, 3, 4, 5, 4, 3]);
+      setMoodHistory(data.moodHistory || []);
       setSessionsCompleted(data.sessionsCompleted || 0);
       setTotalFocusMinutes(data.totalFocusMinutes || 0);
       setBreaksTaken(data.breaksTaken || 0);
@@ -444,102 +396,46 @@ const Tranquility = () => {
   };
 
   const streak = calculateStreak();
-  const recentMoodAverage = moodHistory.slice(-3).reduce((total, mood) => total + mood, 0) / Math.max(1, moodHistory.slice(-3).length);
   const nearestExamDays = exams.length > 0 ? Math.min(...exams.map((exam) => daysUntil(exam.date))) : 30;
-  const burnoutSignals = React.useMemo(
-    () => ({
-      moodTrend: recentMoodAverage,
-      sleepHours,
-      studyHours: Math.max(0, totalFocusMinutes / 60),
-      daysUntilNextExam: nearestExamDays,
-      missedCheckIns: Math.max(0, Math.min(7, 7 - streak)),
-    }),
-    [recentMoodAverage, sleepHours, totalFocusMinutes, nearestExamDays, streak],
-  );
-  const burnoutAssessment = React.useMemo(() => calculateBurnoutAssessment(burnoutSignals), [burnoutSignals]);
-  const studyHoursThisWeek = Math.max(0, totalFocusMinutes / 60);
-  const studyAverage = studyHistory.reduce((total, hours) => total + hours, 0) / Math.max(1, studyHistory.length);
-  const moodDrop = Math.max(0, (moodHistory.slice(-3)[0] || 0) - (moodHistory.slice(-3).at(-1) || 0));
-  const warning = React.useMemo(() => {
-    const hasMoodDrop = moodDrop >= 2;
-    const examSoon = nearestExamDays <= 5;
-    const belowAverage = studyHoursThisWeek < studyAverage;
+  const [dashboardInsights, setDashboardInsights] = useState<any>(null);
 
-    if (!hasMoodDrop || !examSoon || !belowAverage) {
-      return null;
-    }
-
-    const examSubject = exams[0]?.subject || 'your upcoming exam';
-    const percentBelowAverage = Math.max(0, Math.round((1 - studyHoursThisWeek / Math.max(1, studyAverage)) * 100));
-    return {
-      moodDrop,
-      examSubject,
-      examDays: nearestExamDays,
-      percentBelowAverage,
-      message: `${userName}, your mood has dropped ${moodDrop} points this week and your ${examSubject} exam is in ${nearestExamDays} days. Your study hours are ${percentBelowAverage}% below your usual pace. Based on your pattern, this combination has preceded your lowest-performing weeks. Here is what worked for you before.`,
+  useEffect(() => {
+    const fetchInsights = async () => {
+      try {
+        const response = await fetch('http://localhost:8000/insights', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: userName || 'Friend',
+            mood_history: moodHistory,
+            study_history: studyHistory,
+            sleep_hours: sleepHours,
+            exams: exams.map(e => ({
+              subject: e.subject,
+              days_away: daysUntil(e.date),
+              difficulty: e.difficulty
+            }))
+          })
+        });
+        if (response.ok) {
+          const data = await response.json();
+          setDashboardInsights(data);
+        }
+      } catch (e) {
+        console.error("Error fetching insights:", e);
+      }
     };
-  }, [moodDrop, nearestExamDays, studyHoursThisWeek, studyAverage, exams, userName]);
+    // Fetch if we have some data
+    fetchInsights();
+  }, [userName, moodHistory, studyHistory, sleepHours, exams, daysUntil]);
 
-  const subjectAnxietyInsight = React.useMemo(() => {
-    const mathPattern = /\b(math|mathematics)\b/i;
-    const twoDaysMathExams = exams.filter((exam) => mathPattern.test(exam.subject) && daysUntil(exam.date) === 2);
-    const twoDaysNonMathExams = exams.filter((exam) => !mathPattern.test(exam.subject) && daysUntil(exam.date) === 2);
-    const recentMoodDrop = moodHistory.length >= 3 ? moodHistory[moodHistory.length - 3] - moodHistory[moodHistory.length - 1] : 0;
-
-    if (!twoDaysMathExams.length || twoDaysNonMathExams.length > 0 || recentMoodDrop < 2) {
-      return null;
-    }
-
-    const highAnxietyMath = twoDaysMathExams.some((exam) => exam.anxietyRating >= 4);
-    if (!highAnxietyMath) {
-      return null;
-    }
-
-    const subject = twoDaysMathExams[0].subject;
-    return {
-      subject,
-      message: `${userName}, you consistently experience mood drops 2 days before ${subject} exams specifically — not before other subjects. This suggests subject-specific anxiety rather than general exam stress. Here is a targeted technique for mathematical anxiety.`,
-      technique: 'Try a focused warm-up with one simple problem, then use grounding breath cycles before you start intense review.',
-    };
-  }, [exams, moodHistory, userName]);
-
-  const recoveryPlan = React.useMemo<RecoveryDay[]>(() => {
-    const lightestSubject = exams.find((exam) => exam.difficulty === 'easy')?.subject
-      || exams.find((exam) => exam.difficulty === 'medium')?.subject
-      || exams[0]?.subject
-      || 'core concepts';
-    const urgentSubject = exams.find((exam) => exam.difficulty === 'hard')?.subject
-      || exams[0]?.subject
-      || 'your next exam topic';
-    const isCritical = burnoutAssessment.level === 'Critical';
-
-    return [
-      {
-        day: 1,
-        title: 'Light reset day',
-        subject: lightestSubject,
-        duration: isCritical ? '20–25 min' : '25–30 min',
-        recovery: isCritical ? '10-minute walk + hydration' : 'stretch break + tea',
-        intensity: 'Light',
-      },
-      {
-        day: 2,
-        title: 'Build momentum',
-        subject: urgentSubject,
-        duration: isCritical ? '30–35 min' : '35–45 min',
-        recovery: 'Short breathing reset and a snack break',
-        intensity: 'Steady',
-      },
-      {
-        day: 3,
-        title: 'Return to pace',
-        subject: urgentSubject,
-        duration: isCritical ? '45–60 min' : '60–75 min',
-        recovery: 'Protect one evening for rest and prep',
-        intensity: 'Full pace',
-      },
-    ];
-  }, [burnoutAssessment.level, exams]);
+  const burnoutAssessment = dashboardInsights?.burnoutAssessment || { 
+    score: 0, level: 'Loading...', color: 'var(--accent-sage)', 
+    explanation: 'Fetching AI insights...', intervention: 'Please wait...' 
+  };
+  const warning = dashboardInsights?.patternInsight;
+  const subjectAnxietyInsight = dashboardInsights?.subjectAnxietyInsight;
+  const recoveryPlan = dashboardInsights?.recoveryPlan || [];
 
   // Render current page
   const renderPage = () => {
